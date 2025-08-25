@@ -41,18 +41,3 @@ def eval_step(
     )
 
 
-def train_one_epoch(model, train_loader, optimizer):
-
-    losses = []
-    model.train()  # Set model to the training mode: e.g. update batch statistics
-
-    for batch in train_loader:
-        batch = (jnp.array(batch['img']), jnp.array(batch['fine_label']))
-
-        loss = train_step(model, optimizer, batch)
-
-        losses.append(loss)
-
-    return losses
-
-
