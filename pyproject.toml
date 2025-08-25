@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "vitax"
+version = "0.0.1"
+authors = [
+  { name="Mohammad Hassan Heydari", email="mheyddarii@gmail.com" },
+]
+description = "Vitax: Vision Transformers in Flax"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+
+dependencies = [
+    "jax",
+    "flax",
+    "optax",
+]
+
+
+[project.urls]
+"Homepage" = "https://github.com/heydaari/vitax"
+"Bug Tracker" = "https://github.com/heydaari/vitax/issues"
