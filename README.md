@@ -123,12 +123,11 @@ We'll use the `datasets` library to load CIFAR-100 and `torchvision.transforms` 
 
 ```python
 from datasets import load_dataset
+import numpy as np
+from torchvision.transforms import v2 as T
 
 train_dataset = load_dataset("cifar100", split="train")
 val_dataset = load_dataset("cifar100", split="test")
-
-import numpy as np
-from torchvision.transforms import v2 as T
 
 img_size = 224
 
@@ -142,7 +141,6 @@ def normalize(image):
     image = image.astype(np.float32) / 255.0
     return (image - mean) / std
 
-
 tv_train_transforms = T.Compose([
     T.RandomResizedCrop((img_size, img_size), scale=(0.8, 1.0)), # Adjusted scale for smaller 32x32 images
     T.RandomHorizontalFlip(),
@@ -151,33 +149,27 @@ tv_train_transforms = T.Compose([
     T.Lambda(normalize),
 ])
 
-
 tv_test_transforms = T.Compose([
     T.Resize((img_size, img_size)),
     T.Lambda(to_np_array),
     T.Lambda(normalize),
 ])
 
-# CHANGE 5: The transform wrapper is simplified.
-# It now correctly references the "img" feature and no longer needs to map labels.
 def get_transform(fn):
     def wrapper(batch):
-        # The feature name for the image in CIFAR-100 is "img"
+        
         batch["img"] = [
             fn(pil_image) for pil_image in batch["img"]
         ]
-        # The labels are already 0-99, so no mapping is needed.
         return batch
-    return wrapper
 
+    return wrapper
 
 train_transforms = get_transform(tv_train_transforms)
 val_transforms = get_transform(tv_test_transforms)
 
 train_dataset = train_dataset.with_transform(train_transforms)
 val_dataset = val_dataset.with_transform(val_transforms)
-
-
 ```
 
 #### Step 3: Create DataLoaders
