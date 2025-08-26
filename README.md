@@ -50,7 +50,6 @@ model = get_model(
     pretrained=True
 )
 
-print("Model created for fine-tuning on 100 classes.")
 ```
 
 #### Create a Model from Scratch (Random Weights)
@@ -69,7 +68,6 @@ model = get_model(
     pretrained=False
 )
 
-print("Randomly initialized ViT model created.")
 ```
 
 **Using a fully custom architecture:**
@@ -79,11 +77,11 @@ from vitax.models import get_model
 
 # Define a custom configuration for a smaller model
 custom_config = {
-    'img_size': 224,
+    'image_size': 224,
     'patch_size': 16,
-    'num_layers': 6,          # Fewer layers
-    'num_heads': 8,           # Fewer attention heads
-    'mlp_dim': 2048,          # Smaller MLP dimension
+    'num_hidden_layers': 6,          # Fewer layers
+    'num_attention_heads': 8,           # Fewer attention heads
+    'intermediate_size': 2048,          # Smaller MLP dimension
     'hidden_size': 768,       # Embedding dimension
 }
 
@@ -94,7 +92,6 @@ custom_model = get_model(
     pretrained=False
 )
 
-print("Custom, randomly initialized ViT model created.")
 ```
 
 ### 2. A Simple Training Pipeline (Fine-tuning on CIFAR-100)
