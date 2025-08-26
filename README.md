@@ -43,7 +43,7 @@ This is the most common use case. You can load a model pretrained on ImageNet-21
 ```python
 from vitax.models import get_model
 
-# Load a base ViT model pretrained on ImageNet and adapt it for 100 classes
+# Load a base pretrained ViT model and adapt it for 100 classes
 model = get_model(
     'google/vit-base-patch16-224',
     num_classes=100,
@@ -81,8 +81,8 @@ custom_config = {
     'patch_size': 16,
     'num_hidden_layers': 6,          # Fewer layers
     'num_attention_heads': 8,           # Fewer attention heads
-    'intermediate_size': 2048,          # Smaller MLP dimension
-    'hidden_size': 768,       # Embedding dimension
+    'intermediate_size': 500,          # Smaller MLP dimension
+    'hidden_size': 128,       # Embedding dimension
 }
 
 # Create the custom model with random weights
