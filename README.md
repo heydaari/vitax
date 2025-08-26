@@ -1,8 +1,8 @@
-# vitax
+# VITAX
 
 [![PyPI version](https://badge.fury.io/py/vitax.svg)](https://badge.fury.io/py/vitax)
 
-**vitax**: An open-source platform for training and inference of vanilla Vision Transformers (ViT) with the new and elegant **Flax NNX** API.
+**VITAX**: An open-source platform for training and inference of vanilla Vision Transformers (ViT) with the new and elegant **Flax NNX** API.
 
 This library provides a clean, from-scratch implementation of the Vision Transformer model and makes it easy to leverage powerful pretrained models from the Hugging Face Hub for your own computer vision tasks.
 
@@ -75,7 +75,7 @@ model = get_model(
 ```python
 from vitax.models import get_model
 
-# Define a custom configuration for a smaller model
+# Define a custom configuration for a smaller model, compatible with HuggingFace ViT config
 custom_config = {
     'image_size': 224,
     'patch_size': 16,
