@@ -205,7 +205,7 @@ optimizer = nnx.Optimizer(model, optax.adamw(learning_rate=LEARNING_RATE))
 
 #### Step 5: The Training Loop
 
-We'll use the pre-built `train_step` and `eval_step` functions from `vitax` inside our training loop.
+We'll define helper functions for training one epoch and for evaluation. These will use the pre-built `train_step` and `eval_step` functions from `vitax`.
 
 ```python
 # Create evaluation metrics
@@ -214,34 +214,52 @@ eval_metrics = nnx.MultiMetric(
     accuracy=nnx.metrics.Accuracy(),
 )
 
-print("Starting training...")
-for epoch in range(NUM_EPOCHS):
-    # Training phase
-    model.train()
-    train_loss = 0
-    train_steps = len(train_dataset) // TRAIN_BATCH_SIZE
-    with tqdm.tqdm(total=train_steps, desc=f"Epoch {epoch+1}/{NUM_EPOCHS} [Train]") as pbar:
-        for batch in create_dataloader(train_dataset, TRAIN_BATCH_SIZE):
+# For logging metrics
+train_metrics_history = {"train_loss": []}
+eval_metrics_history = {"val_loss": [], "val_accuracy": []}
+
+total_steps = len(train_dataset) // TRAIN_BATCH_SIZE
+
+def train_one_epoch(epoch):
+    """Trains the model for one epoch."""
+    model.train()  # Set model to training mode
+    with tqdm.tqdm(
+        desc=f"[Train] Epoch: {epoch+1}/{NUM_EPOCHS}",
+        total=total_steps,
+        leave=True,
+    ) as pbar:
+        # Create a new data loader for each epoch to handle shuffling
+        train_loader = create_dataloader(train_dataset, TRAIN_BATCH_SIZE)
+        for batch in train_loader:
             batch_tuple = (jnp.array(batch['img']), jnp.array(batch['fine_label']))
             loss = train_step(model, optimizer, batch_tuple)
-            train_loss += loss.item()
-            pbar.set_postfix({"loss": f"{loss.item():.4f}"})
+            train_metrics_history["train_loss"].append(loss.item())
+            pbar.set_postfix({"loss": loss.item()})
             pbar.update(1)
 
-    # Evaluation phase
-    model.eval()
+def evaluate_model(epoch):
+    """Evaluates the model on the validation set."""
+    model.eval()  # Set model to evaluation mode
     eval_metrics.reset()
-    val_steps = len(val_dataset) // VAL_BATCH_SIZE
-    with tqdm.tqdm(total=val_steps, desc=f"Epoch {epoch+1}/{NUM_EPOCHS} [Val]") as pbar:
-        for batch in create_dataloader(val_dataset, VAL_BATCH_SIZE, shuffle=False):
-            batch_tuple = (jnp.array(batch['img']), jnp.array(batch['fine_label']))
-            eval_step(model, batch_tuple, eval_metrics)
-            pbar.update(1)
+    val_loader = create_dataloader(val_dataset, VAL_BATCH_SIZE, shuffle=False)
+    for val_batch in val_loader:
+        batch_tuple = (jnp.array(val_batch['img']), jnp.array(val_batch['fine_label']))
+        eval_step(model, batch_tuple, eval_metrics)
 
-    metrics_computed = eval_metrics.compute()
-    val_loss = metrics_computed['loss']
-    val_acc = metrics_computed['accuracy']
-    print(f"Epoch {epoch+1} | Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc:.4f}")
+    metrics = eval_metrics.compute()
+    eval_metrics_history['val_loss'].append(metrics['loss'])
+    eval_metrics_history['val_accuracy'].append(metrics['accuracy'])
+    print(
+        f"\n[Val] Epoch: {epoch+1}/{NUM_EPOCHS} | "
+        f"Loss: {metrics['loss']:.4f} | "
+        f"Accuracy: {metrics['accuracy']:.4f}"
+    )
+
+# --- Run The Training ---
+print("Starting training...")
+for epoch in range(NUM_EPOCHS):
+    train_one_epoch(epoch)
+    evaluate_model(epoch)
 
 print("Training finished!")
 ```
