@@ -229,7 +229,7 @@ Now, we create our model for fine-tuning and set up the optimizer using `optax`.
 ```python
 NUM_CLASSES = 100
 LEARNING_RATE = 0.001
-num_classes = 3
+num_epochs = 3
 
 # Get a pretrained model adapted for CIFAR-100
 model = get_model(
