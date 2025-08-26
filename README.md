@@ -289,6 +289,11 @@ def evaluate_model(epoch):
     print(f"[val] epoch: {epoch + 1}/{num_epochs}")
     print(f"- total loss: {eval_metrics_history['val_loss'][-1]:0.4f}")
     print(f"- Accuracy: {eval_metrics_history['val_accuracy'][-1]:0.4f}")
+
+# And here goes the training
+for epoch in range(num_epochs):
+    train_one_epoch(epoch)
+    evaluate_model(epoch)
 ```
 
 ## Contributing
