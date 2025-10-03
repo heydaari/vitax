@@ -1,8 +1,8 @@
-# vitax
+# VITAX
 
 [![PyPI version](https://badge.fury.io/py/vitax.svg)](https://badge.fury.io/py/vitax)
 
-**vitax**: An open-source platform for training and inference of vanilla Vision Transformers (ViT) with the new and elegant **Flax NNX** API.
+**VITAX**: An open-source platform for training and inference of vanilla Vision Transformers (ViT) with the new and elegant **Flax NNX** API.
 
 This library provides a clean, from-scratch implementation of the Vision Transformer model and makes it easy to leverage powerful pretrained models from the Hugging Face Hub for your own computer vision tasks.
 
@@ -43,14 +43,13 @@ This is the most common use case. You can load a model pretrained on ImageNet-21
 ```python
 from vitax.models import get_model
 
-# Load a base ViT model pretrained on ImageNet and adapt it for 100 classes
+# Load a base pretrained ViT model and adapt it for 100 classes
 model = get_model(
     'google/vit-base-patch16-224',
     num_classes=100,
     pretrained=True
 )
 
-print("Model created for fine-tuning on 100 classes.")
 ```
 
 #### Create a Model from Scratch (Random Weights)
@@ -69,7 +68,6 @@ model = get_model(
     pretrained=False
 )
 
-print("Randomly initialized ViT model created.")
 ```
 
 **Using a fully custom architecture:**
@@ -77,14 +75,14 @@ print("Randomly initialized ViT model created.")
 ```python
 from vitax.models import get_model
 
-# Define a custom configuration for a smaller model
+# Define a custom configuration for a smaller model, compatible with HuggingFace ViT config
 custom_config = {
-    'img_size': 224,
+    'image_size': 224,
     'patch_size': 16,
-    'num_layers': 6,          # Fewer layers
-    'num_heads': 8,           # Fewer attention heads
-    'mlp_dim': 2048,          # Smaller MLP dimension
-    'hidden_size': 768,       # Embedding dimension
+    'num_hidden_layers': 6,          # Fewer layers
+    'num_attention_heads': 8,           # Fewer attention heads
+    'intermediate_size': 500,          # Smaller MLP dimension
+    'hidden_size': 128,       # Embedding dimension
 }
 
 # Create the custom model with random weights
@@ -94,7 +92,6 @@ custom_model = get_model(
     pretrained=False
 )
 
-print("Custom, randomly initialized ViT model created.")
 ```
 
 ### 2. A Simple Training Pipeline (Fine-tuning on CIFAR-100)
@@ -125,65 +122,104 @@ from vitax.training import train_step, eval_step
 We'll use the `datasets` library to load CIFAR-100 and `torchvision.transforms` to apply standard data augmentations.
 
 ```python
-# Load the dataset
+from datasets import load_dataset
+import numpy as np
+from torchvision.transforms import v2 as T
+
 train_dataset = load_dataset("cifar100", split="train")
 val_dataset = load_dataset("cifar100", split="test")
 
-# Define image transformations
-IMG_SIZE = 224
-MEAN = np.array([0.5, 0.5, 0.5])
-STD = np.array([0.5, 0.5, 0.5])
+img_size = 224
+
+def to_np_array(pil_image):
+  return np.asarray(pil_image.convert("RGB"))
 
 def normalize(image):
+    # Image preprocessing matches the one of pretrained ViT
+    mean = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+    std = np.array([0.5, 0.5, 0.5], dtype=np.float32)
     image = image.astype(np.float32) / 255.0
-    return (image - MEAN) / STD
+    return (image - mean) / std
 
-train_transforms = T.Compose([
-    T.Lambda(lambda pil_image: np.asarray(pil_image.convert("RGB"))),
-    T.Lambda(lambda np_array: jax.image.resize(np_array, (IMG_SIZE, IMG_SIZE), 'bicubic')),
+tv_train_transforms = T.Compose([
+    T.RandomResizedCrop((img_size, img_size), scale=(0.8, 1.0)), # Adjusted scale for smaller 32x32 images
     T.RandomHorizontalFlip(),
+    T.ColorJitter(0.2, 0.2, 0.2),
+    T.Lambda(to_np_array),
     T.Lambda(normalize),
 ])
 
-val_transforms = T.Compose([
-    T.Lambda(lambda pil_image: np.asarray(pil_image.convert("RGB"))),
-    T.Lambda(lambda np_array: jax.image.resize(np_array, (IMG_SIZE, IMG_SIZE), 'bicubic')),
+tv_test_transforms = T.Compose([
+    T.Resize((img_size, img_size)),
+    T.Lambda(to_np_array),
     T.Lambda(normalize),
 ])
 
-def apply_transforms(batch):
-    batch["img"] = [train_transforms(img) for img in batch["img"]]
-    return batch
+def get_transform(fn):
+    def wrapper(batch):
+        
+        batch["img"] = [
+            fn(pil_image) for pil_image in batch["img"]
+        ]
+        return batch
 
-train_dataset.set_transform(apply_transforms)
-val_dataset.set_transform(val_transforms)
+    return wrapper
+
+train_transforms = get_transform(tv_train_transforms)
+val_transforms = get_transform(tv_test_transforms)
+
+train_dataset = train_dataset.with_transform(train_transforms)
+val_dataset = val_dataset.with_transform(val_transforms)
 ```
 
 #### Step 3: Create DataLoaders
 
-We need a way to iterate over the data in batches. You can use any data loader you prefer. Here, we'll use a simple manual batching generator.
+We need a way to iterate over the data in batches. You can use any data loader you prefer. Here, we'll use a grain dataloader objects.
 
 ```python
-def collate_fn(batch):
-    images = np.stack([item['img'] for item in batch])
-    labels = np.stack([item['fine_label'] for item in batch])
-    return {'img': images, 'fine_label': labels}
+import grain.python as grain
 
-def create_dataloader(dataset, batch_size, shuffle=True):
-    indices = np.arange(len(dataset))
-    if shuffle:
-        np.random.shuffle(indices)
-    for i in range(0, len(indices), batch_size):
-        batch_indices = indices[i:i+batch_size]
-        if len(batch_indices) < batch_size and shuffle:
-            continue # Drop last batch if shuffling
-        yield collate_fn([dataset[int(j)] for j in batch_indices])
+seed = 12
+train_batch_size = 32
+val_batch_size = 2 * train_batch_size
 
-TRAIN_BATCH_SIZE = 64
-VAL_BATCH_SIZE = 128
 
-train_loader = create_dataloader(train_dataset, TRAIN_BATCH_SIZE)
-val_loader = create_dataloader(val_dataset, VAL_BATCH_SIZE, shuffle=False)
+train_sampler = grain.IndexSampler(
+    len(train_dataset),  
+    shuffle=True,            
+    seed=seed,               
+    shard_options=grain.NoSharding(),  
+    num_epochs=1,            
+)
+
+val_sampler = grain.IndexSampler(
+    len(val_dataset),  
+    shuffle=False,         
+    seed=seed,             
+    shard_options=grain.NoSharding(),  
+    num_epochs=1,          
+)
+
+
+train_loader = grain.DataLoader(
+    data_source=train_dataset,
+    sampler=train_sampler,                 
+    worker_count=4,                        
+    worker_buffer_size=2,                  
+    operations=[
+        grain.Batch(train_batch_size, drop_remainder=True),
+    ]
+)
+
+val_loader = grain.DataLoader(
+    data_source=val_dataset,
+    sampler=val_sampler,                   
+    worker_count=4,                        
+    worker_buffer_size=2,
+    operations=[
+        grain.Batch(val_batch_size),
+    ]
+)
 ```
 
 #### Step 4: Initialize Model and Optimizer
@@ -193,7 +229,7 @@ Now, we create our model for fine-tuning and set up the optimizer using `optax`.
 ```python
 NUM_CLASSES = 100
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 3
+num_epochs = 3
 
 # Get a pretrained model adapted for CIFAR-100
 model = get_model(
@@ -208,7 +244,7 @@ optimizer = nnx.Optimizer(model, optax.adamw(learning_rate=LEARNING_RATE))
 
 #### Step 5: The Training Loop
 
-We'll use the pre-built `train_step` and `eval_step` functions from `vitax` inside our training loop.
+We'll define helper functions for training one epoch and for evaluation. These will use the pre-built `train_step` and `eval_step` functions from `vitax`.
 
 ```python
 # Create evaluation metrics
@@ -217,36 +253,39 @@ eval_metrics = nnx.MultiMetric(
     accuracy=nnx.metrics.Accuracy(),
 )
 
-print("Starting training...")
-for epoch in range(NUM_EPOCHS):
-    # Training phase
-    model.train()
-    train_loss = 0
-    train_steps = len(train_dataset) // TRAIN_BATCH_SIZE
-    with tqdm.tqdm(total=train_steps, desc=f"Epoch {epoch+1}/{NUM_EPOCHS} [Train]") as pbar:
-        for batch in create_dataloader(train_dataset, TRAIN_BATCH_SIZE):
-            batch_tuple = (jnp.array(batch['img']), jnp.array(batch['fine_label']))
-            loss = train_step(model, optimizer, batch_tuple)
-            train_loss += loss.item()
-            pbar.set_postfix({"loss": f"{loss.item():.4f}"})
-            pbar.update(1)
+# For logging metrics
+train_metrics_history = {"train_loss": []}
+eval_metrics_history = {"val_loss": [], "val_accuracy": []}
 
-    # Evaluation phase
-    model.eval()
-    eval_metrics.reset()
-    val_steps = len(val_dataset) // VAL_BATCH_SIZE
-    with tqdm.tqdm(total=val_steps, desc=f"Epoch {epoch+1}/{NUM_EPOCHS} [Val]") as pbar:
-        for batch in create_dataloader(val_dataset, VAL_BATCH_SIZE, shuffle=False):
-            batch_tuple = (jnp.array(batch['img']), jnp.array(batch['fine_label']))
-            eval_step(model, batch_tuple, eval_metrics)
-            pbar.update(1)
+def train_one_epoch(epoch):
 
-    metrics_computed = eval_metrics.compute()
-    val_loss = metrics_computed['loss']
-    val_acc = metrics_computed['accuracy']
-    print(f"Epoch {epoch+1} | Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc:.4f}")
+    model.train()  
 
-print("Training finished!")
+    for batch in train_loader:
+        batch = (jnp.array(batch['img']) , jnp.array(batch['fine_label']))
+
+        loss = train_step(model, optimizer, batch)
+        train_metrics_history["train_loss"].append(loss.item())
+
+
+def evaluate_model(epoch):
+    model.eval() 
+
+    eval_metrics.reset() 
+    for val_batch in val_loader:
+        eval_step(model, (val_batch['img'], val_batch['fine_label']), eval_metrics)
+
+    for metric, value in eval_metrics.compute().items():
+        eval_metrics_history[f'val_{metric}'].append(value)
+
+    print(f"[val] epoch: {epoch + 1}/{num_epochs}")
+    print(f"- total loss: {eval_metrics_history['val_loss'][-1]:0.4f}")
+    print(f"- Accuracy: {eval_metrics_history['val_accuracy'][-1]:0.4f}")
+
+# And here goes the training
+for epoch in range(num_epochs):
+    train_one_epoch(epoch)
+    evaluate_model(epoch)
 ```
 
 ## Contributing
