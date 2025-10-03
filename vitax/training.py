@@ -3,7 +3,10 @@ import optax
 import jax, jax.numpy as jnp
 
 
-def compute_losses_and_logits(model: nnx.Module, images: jax.Array, labels: jax.Array):
+def compute_losses_and_logits(model: nnx.Module,
+                              images: jax.Array,
+                              labels: jax.Array):
+
     logits = model(images)
     loss = optax.softmax_cross_entropy_with_integer_labels(
         logits=logits, labels=labels

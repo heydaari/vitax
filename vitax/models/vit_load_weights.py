@@ -4,7 +4,7 @@ from flax import nnx
 from typing import Union
 from vitax.models.vit import VisionTransformer
 
-AVAILABLE_MODELS = ['google/vit-base-patch16-224',
+VisionTransformers = ['google/vit-base-patch16-224',
                     'google/vit-large-patch16-224',
                     'google/vit-large-patch16-384',
                     'google/vit-base-patch16-384',
@@ -16,32 +16,21 @@ AVAILABLE_MODELS = ['google/vit-base-patch16-224',
                     'google/vit-base-patch32-224-in21k',
                     'google/vit-large-patch32-224-in21k']
 
-
 def vit_inplace_copy_weights(*, src_model, dst_model, config):
-    """
-    Copies weights from a Hugging Face FlaxViTForImageClassification model to a custom VisionTransformer model.
 
-    Args:
-        src_model (FlaxViTForImageClassification): The source model with pre-trained weights.
-        dst_model (VisionTransformer): The destination model to load the weights into.
-        config (ViTConfig): The configuration of the source model.
-    """
     assert isinstance(src_model, FlaxViTForImageClassification)
     assert isinstance(dst_model, VisionTransformer)
 
     tf_model_params = src_model.params
     tf_model_params_fstate = nnx.traversals.flatten_mapping(tf_model_params)
 
-    # Notice the use of `flax.nnx.state`.
     flax_model_params = nnx.state(dst_model, nnx.Param)
     flax_model_params_fstate = dict(flax_model_params.flat_state())
 
-    # Dynamically get the number of layers from the config
     num_layers = config.num_hidden_layers
     num_heads = config.num_attention_heads
     head_dim = config.hidden_size // num_heads
 
-    # Mapping from Flax parameter names to TF parameter names.
     params_name_mapping = {
         ("cls_token",): ("vit", "embeddings", "cls_token"),
         ("position_embeddings",): ("vit", "embeddings", "position_embeddings"),
@@ -116,7 +105,7 @@ def vit_inplace_copy_weights(*, src_model, dst_model, config):
         assert dst_value.value.mean() == src_value.mean(), (dst_value.value, src_value.mean())
 
     assert len(nonvisited) == 0, nonvisited
-    # Notice the use of `flax.nnx.update` and `flax.nnx.State`.
+
     nnx.update(dst_model, nnx.State.from_flat_path(flax_model_params_fstate))
 
 
@@ -175,8 +164,6 @@ def get_model(
                 'dropout_rate': config.hidden_dropout_prob,
             }
         elif isinstance(name_or_config, dict):
-            # Map keys from the user-provided config dict to our model's __init__ args
-            # This allows for flexibility if our internal naming differs from Hugging Face's
             config_key_mapping = {
                 'image_size': 'img_size',
                 'patch_size': 'patch_size',
@@ -186,9 +173,9 @@ def get_model(
                 'hidden_size': 'hidden_size',
                 'hidden_dropout_prob': 'dropout_rate',
             }
-            for hf_key, model_key in config_key_mapping.items():
-                if hf_key in name_or_config:
-                    model_kwargs[model_key] = name_or_config[hf_key]
+            for key in name_or_config.keys():
+                if key in config_key_mapping:
+                    model_kwargs[config_key_mapping[key]] = name_or_config[key]
         else:
             raise TypeError(f"Expected 'name_or_config' to be a str or dict, but got {type(name_or_config)}.")
 
