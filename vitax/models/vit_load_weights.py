@@ -109,7 +109,7 @@ def vit_inplace_copy_weights(*, src_model, dst_model, config):
     nnx.update(dst_model, nnx.State.from_flat_path(flax_model_params_fstate))
 
 
-def get_model(
+def vit_get_model(
     name_or_config: Union[str, dict],
     num_classes: int = 1000,
     pretrained: bool = True
@@ -118,7 +118,7 @@ def get_model(
     if pretrained and isinstance(name_or_config, dict):
         raise ValueError("Loading pretrained weights requires a model name (string), not a config dictionary.")
 
-    if isinstance(name_or_config, str) and name_or_config not in AVAILABLE_MODELS:
+    if isinstance(name_or_config, str) and name_or_config not in VisionTransformers:
         raise ValueError(f"Model name '{name_or_config}' is not a valid or available model.")
 
     if pretrained:
