@@ -116,7 +116,7 @@ def vit_get_model(
 ) -> VisionTransformer:
 
     if pretrained and isinstance(name_or_config, dict):
-        raise ValueError("Loading pretrained weights requires a model name (string), not a config dictionary.")
+        raise ValueError("Can not create pretrained model with custom config, please set pretrained=False")
 
     if isinstance(name_or_config, str) and name_or_config not in VisionTransformers:
         raise ValueError(f"Model name '{name_or_config}' is not a valid or available model.")
