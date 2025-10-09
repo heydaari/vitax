@@ -31,10 +31,10 @@ In Vitax, you can create vision transformers in different ways
 This is the most common use case. You can load a model pretrained on ImageNet-21k and adapt its final classification layer for your specific dataset (e.g., CIFAR-100 with 100 classes).
 
 ```python
-from vitax.models import get_model
+from vitax.models import create_model
 
 # Load a base pretrained ViT model and adapt it for 100 classes
-model = get_model(
+model = create_model(
     'google/vit-base-patch16-224',
     num_classes=100,
     pretrained=True
@@ -49,10 +49,10 @@ If you want to train a model from the ground up, you can create one with random 
 **Using a standard model configuration:**
 
 ```python
-from vitax.models import get_model
+from vitax.models import create_model
 
 # Create a 'vit-base-patch16-224' architecture with random weights
-model = get_model(
+model = create_model(
     'google/vit-base-patch16-224',
     num_classes=10, # For a 10-class dataset like CIFAR-10
     pretrained=False
@@ -63,7 +63,7 @@ model = get_model(
 **Using a fully custom architecture:**
 
 ```python
-from vitax.models import get_model
+from vitax.models import create_model
 
 # Define a custom configuration for a smaller model, compatible with HuggingFace ViT config
 custom_config = {
@@ -76,7 +76,7 @@ custom_config = {
 }
 
 # Create the custom model with random weights
-custom_model = get_model(
+custom_model = create_model(
     name_or_config=custom_config,
     num_classes=10,
     pretrained=False
