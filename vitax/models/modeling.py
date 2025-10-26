@@ -41,15 +41,15 @@ class ViTFactory:
     def build(self,
               name_or_config: Union[str, Dict],
               fsdp: bool,
-              mesh = None,
-              optimizer = None,
+              mesh=None,
+              optimizer=None,
               **kwargs: Any) -> VisionTransformer:
 
-        model =  vit_get_model(name_or_config=name_or_config,fsdp = fsdp, **kwargs)
+        model = vit_get_model(name_or_config=name_or_config, fsdp=fsdp, **kwargs)
 
         return shard_model_and_create_optimizer(model=model,
                                                 mesh= mesh,
-                                                optimizer= optimizer) if fsdp else model
+                                                optimizer=optimizer) if fsdp else model
 
 
 _MODEL_FACTORIES: List[Any] = [
@@ -61,16 +61,19 @@ _MODEL_FACTORIES: List[Any] = [
 
 def create_model(
     name_or_config: Union[str, Dict],
-    fsdp: bool = True,
-    optimizer = None,
+    fsdp: bool = False,
+    optimizer=None,
     **kwargs: Any,
 ) -> VisionTransformer:
 
+    if fsdp and not optimizer:
+        raise ValueError("For FSDP, you should provide an optax optimizer.")
+
     if fsdp:
-        NUM_DEVICES = jax.device_count()
+        num_devices = jax.device_count()
         mesh = jax.make_mesh(
-            (NUM_DEVICES,),
-            ('data',),
+            axis_shapes=(num_devices,),
+            axis_names=('data',),
         )
     else: 
         mesh = None
@@ -82,6 +85,7 @@ def create_model(
             return factory.build(name_or_config=name_or_config,
                                  fsdp=fsdp,
                                  mesh=mesh,
-                                 optimizer=optimizer**kwargs)
+                                 optimizer=optimizer,
+                                 **kwargs)
 
     raise ValueError(f"Could not find a model factory for '{name_or_config}'.")
