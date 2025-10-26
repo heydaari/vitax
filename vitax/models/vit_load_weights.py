@@ -3,6 +3,7 @@ from transformers.models.vit.configuration_vit import ViTConfig
 from flax import nnx
 from typing import Union
 from vitax.models.vit import VisionTransformer
+from vitax.models.vit import default_kernel_init
 
 VisionTransformers = ['google/vit-base-patch16-224',
                     'google/vit-large-patch16-224',
@@ -112,7 +113,8 @@ def vit_inplace_copy_weights(*, src_model, dst_model, config):
 def vit_get_model(
     name_or_config: Union[str, dict],
     num_classes: int = 1000,
-    pretrained: bool = True
+    pretrained: bool = True,
+    fsdp = True
 ) -> VisionTransformer:
 
     if pretrained and isinstance(name_or_config, dict):
@@ -147,6 +149,11 @@ def vit_get_model(
             model.classifier = nnx.Linear(
                 in_features=model.classifier.in_features,
                 out_features=num_classes,
+                kernel_init= nnx.with_partitioning(
+                nnx.initializers.lecun_normal(),
+                ('data', None),  # Shard along the input feature axis
+            ) if fsdp else default_kernel_init,
+
                 rngs=nnx.Rngs(0)
             )
     else:  # Not pretrained, create a randomly initialized model
@@ -181,6 +188,7 @@ def vit_get_model(
 
         model = VisionTransformer(
             num_classes=num_classes,
+            fsdp=fsdp,
             **model_kwargs,
             rngs=nnx.Rngs(0)
         )
