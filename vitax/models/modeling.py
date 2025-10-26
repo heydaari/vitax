@@ -5,7 +5,7 @@ from .vit_load_weights import vit_get_model , VisionTransformers
 from flax import nnx
 import optax
 
-@nnx.jit
+@nnx.jit(static_argnames=['mesh'])
 def shard_model_and_create_optimizer(model: VisionTransformer,
                                      optimizer, # Should be an Optax optimizer object
                                      mesh
