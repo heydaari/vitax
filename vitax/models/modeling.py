@@ -11,7 +11,7 @@ def shard_model_and_create_optimizer(model: VisionTransformer,
                                      mesh
                                      ):
 
-    optimizer = nnx.Optimizer(model, optimizer)
+    optimizer = nnx.optimizer.Optimizer(model=model, tx=optimizer, wrt=nnx.Param)
 
     model_state = nnx.state(model)
     model_shardings = nnx.get_named_sharding(model_state, mesh)
@@ -43,13 +43,21 @@ class ViTFactory:
               fsdp: bool,
               mesh=None,
               optimizer=None,
-              **kwargs: Any) -> VisionTransformer:
+              **kwargs: Any):
 
-        model = vit_get_model(name_or_config=name_or_config, fsdp=fsdp, **kwargs)
+        if fsdp:
 
-        return shard_model_and_create_optimizer(model=model,
-                                                mesh= mesh,
-                                                optimizer=optimizer) if fsdp else model
+            with mesh:
+                model = vit_get_model(name_or_config=name_or_config, fsdp=fsdp, **kwargs)
+
+            # This returns sharded model and optimizer, should be unpacked when calling the create_model function
+            return shard_model_and_create_optimizer(model=model,
+                                                    mesh=mesh,
+                                                    optimizer=optimizer)
+        else:
+
+            model = vit_get_model(name_or_config=name_or_config, fsdp=fsdp, **kwargs)
+            return model
 
 
 _MODEL_FACTORIES: List[Any] = [
