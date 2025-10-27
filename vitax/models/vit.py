@@ -108,12 +108,12 @@ class TransformerEncoder(nnx.Module):
             deterministic=False,
             kernel_init=nnx.with_partitioning(
                 nnx.initializers.xavier_uniform(),
-                (None, 'data', None) ,  # Shard Q,K,V kernels
+                ('data', None, None) ,  # Shard input features
             ) if fsdp else default_kernel_init,
 
             out_kernel_init=nnx.with_partitioning(
                 nnx.initializers.xavier_uniform(),
-                ('data', None) if fsdp else default_kernel_init,  # Shard output projection
+                (None, None, 'data') if fsdp else default_kernel_init,  # Shard output projection
             ) if fsdp else default_kernel_init,
             rngs=rngs,
         )
