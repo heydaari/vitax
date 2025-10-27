@@ -4,4 +4,4 @@ from vitax.training import eval_step
 from vitax.training import train_step
 
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
