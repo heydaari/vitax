@@ -1,6 +1,5 @@
 # VITAX
 
-[![PyPI version](https://badge.fury.io/py/vitax.svg)](https://badge.fury.io/py/vitax)
 
 **VITAX**: An open-source platform for training and inference of Vision Transformers (ViT) with the new and elegant **Flax NNX** API.
 
@@ -26,7 +25,7 @@ pip install vitax
 
 In Vitax, you can create vision transformers in different ways
 
-#### Load a Pretrained Model for Fine-Tuning
+#### Load a Pretrained Model for Fine-Tuning (Single Device)
 
 This is the most common use case. You can load a model pretrained on ImageNet-21k and adapt its final classification layer for your specific dataset (e.g., CIFAR-100 with 100 classes).
 
@@ -42,7 +41,7 @@ model = create_model(
 
 ```
 
-#### Create a Model from Scratch (Random Weights)
+#### Create a Model from Scratch (Random Weights, Single Device)
 
 If you want to train a model from the ground up, you can create one with random weights. You can either use a standard configuration or define your own.
 
@@ -81,6 +80,36 @@ custom_model = create_model(
     num_classes=10,
     pretrained=False
 )
+
+```
+
+#### Load a Pretrained Model for Fine-Tuning on Multiple Devices (GPUs and TPUs)
+
+Vitax supports FSDP training via jax Mesh, but you need to provide an optimizer to the model creation API to successfully create and shard the model and optimizer states.
+```python
+from vitax.models import create_model
+import jax
+from jax.sharding import PartitionSpec as P, NamedSharding
+import optax
+
+momentum = 0.9
+optax_optimizer = optax.sgd(0.001, momentum, nesterov=True)
+
+NUM_DEVICES = jax.device_count()
+mesh = jax.make_mesh((NUM_DEVICES, ), ('data', ))
+
+def named_sharding(*names: str | None) -> NamedSharding:
+    return NamedSharding(mesh, P(*names))
+
+# in FSDP, model should be created in a Mesh scope
+with mesh: 
+    sharded_model, optimizer = create_model(
+        name_or_config='google/vit-base-patch16-224',
+        num_classes=100,
+        pretrained=True,
+        fsdp = True,
+        optimizer = optax_optimizer
+    )
 
 ```
 
