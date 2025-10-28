@@ -1,5 +1,6 @@
-# VITAX
-
+<p align="center">
+<img src="https://media.licdn.com/dms/image/v2/D4D22AQEo66y-0KPU9w/feedshare-shrink_800/B4DZoqMYMDGsAg-/0/1761644481533?e=1762992000&v=beta&t=WDjsFasRWqppli04y63IXzluQUQSIkQ0-tLtsN3Y6DU" alt="Alt text" width="300" height="300">
+</p>
 
 **VITAX**: An open-source platform for training and inference of Vision Transformers (ViT) with the new and elegant **Flax NNX** API.
 
